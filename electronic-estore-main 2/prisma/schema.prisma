@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  firstName String?
+  lastName  String?
+  dob       DateTime?
+  userName  String?
+  password  String
+  email     String     @unique
+  address   String?
+  role      Role       @default(CUSTOMER)
+  orders    Order[]
+  payments  Payment[]
+  Category  Category[]
+
+  @@map("customer")
+}
+
+model Admin {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  password String
+  email    String @unique
+
+  @@map("admin")
+}
+
+model Category {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  name        String  @unique
+  description String?
+
+  categoryItems CategoryProducts[]
+
+  admin   User?   @relation(fields: [adminId], references: [id])
+  adminId String? @db.ObjectId
+
+  @@map("category")
+}
+
+model CategoryProducts {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  productId  String   @map("item_id") @db.ObjectId
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  categoryId String   @map("category_id") @db.ObjectId
+
+  @@map("category_item")
+}
+
+model Product {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  slug        String  @unique
+  description String
+  image       String
+  vendor      String
+  quantity    Int
+  price       Float
+  serialNo    String?
+
+  categories   CategoryProducts[]
+  orders       ProductOrder[]
+  productPlans ProductPlan[]
+
+  @@map("product")
+}
+
+model ProductPlan {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  price       Float
+  guarantee   Int
+  maintenance Int
+
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  productId String  @map("product_id") @db.ObjectId
+
+  @@map("product_plan")
+}
+
+model Order {
+  id             String         @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt      DateTime       @default(now())
+  status         OrderStatus
+  type           OrderType      @default(PICKUP)
+  pickupDateTime DateTime?
+  payment        Payment?
+  products       ProductOrder[]
+
+  customer   User   @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  customerId String @map("customer_id") @db.ObjectId
+
+  @@map("order")
+}
+
+model Payment {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt     DateTime      @default(now())
+  amount        Float
+  paymentMethod PaymentMethod
+  address       String?
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  orderId       String        @unique @map("order_id") @db.ObjectId
+  customer      User          @relation(fields: [customerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  customerId    String        @map("customer_id") @db.ObjectId
+
+  @@map("payment")
+}
+
+model ProductOrder {
+  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+  quantity        Int
+  amount          Float
+  serialNo        String
+  returnRequested Boolean @default(false) @map("return_requested")
+  isReturned      Boolean @default(false) @map("is_returned")
+
+  productPlanId String? @map("product_plan_id")
+
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  productId String  @map("product_id") @db.ObjectId
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  orderId   String  @map("order_id") @db.ObjectId
+
+  @@map("product_order")
+}
+
+enum OrderType {
+  DELIVERY
+  PICKUP
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+}
+
+enum OrderStatus {
+  PENDING
+  DELIVERED
+  RETURNED
+  READY
+  ACCEPTED
+  COMPLETED
+  CANCELLED
+  REJECTED
+  RETURN_REQUESTED
+  RETURN_REJECTED
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
